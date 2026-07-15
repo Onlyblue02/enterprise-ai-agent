@@ -172,6 +172,15 @@ class ObservabilityService:
             rows = connection.execute(sql, params).fetchall()
         return [dict(row) for row in rows]
 
+    def clear_all(self) -> tuple[int, int]:
+        """删除全部运行及事件记录，并返回删除数量。"""
+        with self._connection() as connection:
+            run_count = connection.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
+            event_count = connection.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+            connection.execute("DELETE FROM events")
+            connection.execute("DELETE FROM runs")
+        return run_count, event_count
+
     @staticmethod
     def _now() -> str:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")

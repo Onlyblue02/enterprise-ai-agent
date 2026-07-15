@@ -21,9 +21,32 @@ def render_observability_page() -> None:
 
     service = ObservabilityService()
     runs = service.list_runs(limit=50)
+
+    clear_message = st.session_state.pop("observability_clear_message", None)
+    if clear_message:
+        st.success(clear_message)
+
     if not runs:
         st.info("暂无运行记录。请先执行一次知识问答或企业工作流。")
         return
+
+    with st.expander("记录管理"):
+        st.warning("此操作将永久删除全部运行记录及执行明细，且无法恢复。")
+        confirmed = st.checkbox(
+            "我确认清空全部运行监控记录",
+            key="confirm_clear_observability",
+        )
+        if st.button(
+            "清空全部记录",
+            disabled=not confirmed,
+            type="primary",
+            use_container_width=False,
+        ):
+            run_count, event_count = service.clear_all()
+            st.session_state["observability_clear_message"] = (
+                f"已清空 {run_count} 条运行记录和 {event_count} 条执行明细。"
+            )
+            st.rerun()
 
     completed = sum(run["status"] == "completed" for run in runs)
     failed = sum(run["status"] == "failed" for run in runs)

@@ -30,3 +30,19 @@ class ObservabilityServiceTest(unittest.TestCase):
             self.assertEqual(run["output_tokens"], 25)
             self.assertEqual(events[0]["name"], "calculate")
             self.assertGreaterEqual(run["duration_ms"], 0)
+
+    def test_clear_all_removes_runs_and_events(self):
+        with TemporaryDirectory() as temp_dir:
+            service = ObservabilityService(Path(temp_dir) / "observability.db")
+            first_run_id = service.start_run("agent", "第一次运行")
+            second_run_id = service.start_run("workflow", "第二次运行")
+            service.log_event(first_run_id, "tool", "search_knowledge_base")
+            service.log_event(second_run_id, "node", "write_draft")
+
+            run_count, event_count = service.clear_all()
+
+            self.assertEqual(run_count, 2)
+            self.assertEqual(event_count, 2)
+            self.assertEqual(service.list_runs(), [])
+            self.assertEqual(service.get_events(first_run_id), [])
+            self.assertEqual(service.get_events(second_run_id), [])
