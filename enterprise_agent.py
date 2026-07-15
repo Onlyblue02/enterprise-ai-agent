@@ -15,6 +15,12 @@ from database_service import DatabaseService
 from knowledge_base import KnowledgeBaseService
 from rag import RagService
 from tools import build_business_tools, build_calculator_tools, build_knowledge_tools
+from dashscope_retry import (
+    MAX_NETWORK_ATTEMPTS,
+    is_retryable_network_error,
+    network_error_message,
+    wait_before_retry,
+)
 
 
 @dataclass
@@ -198,7 +204,7 @@ class EnterpriseAgent:
         if include_tools:
             kwargs["tools"] = self.tool_schemas
 
-        response = Generation.call(**kwargs)
+        response = self._call_with_network_retry(**kwargs)
         if response.status_code != HTTPStatus.OK:
             raise RuntimeError(
                 f"DashScope 调用失败：{response.code} - {response.message}"
@@ -223,27 +229,50 @@ class EnterpriseAgent:
         previous_content = ""
         final_output = None
         final_usage = None
-        for response in Generation.call(**kwargs):
-            if response.status_code != HTTPStatus.OK:
-                raise RuntimeError(
-                    f"DashScope 调用失败：{response.code} - {response.message}"
-                )
-            output = self._plain_dict(response.output.choices[0].message)
-            final_output = output
-            final_usage = getattr(response, "usage", final_usage)
-            content = str(output.get("content") or "")
-            if content.startswith(previous_content):
-                delta = content[len(previous_content) :]
-            else:
-                delta = content
-            previous_content = content
-            if delta:
-                yield {"type": "token", "content": delta}
+        for attempt in range(1, MAX_NETWORK_ATTEMPTS + 1):
+            try:
+                for response in Generation.call(**kwargs):
+                    if response.status_code != HTTPStatus.OK:
+                        raise RuntimeError(
+                            f"DashScope 调用失败：{response.code} - {response.message}"
+                        )
+                    output = self._plain_dict(response.output.choices[0].message)
+                    final_output = output
+                    final_usage = getattr(response, "usage", final_usage)
+                    content = str(output.get("content") or "")
+                    if content.startswith(previous_content):
+                        delta = content[len(previous_content) :]
+                    else:
+                        delta = content
+                    previous_content = content
+                    if delta:
+                        yield {"type": "token", "content": delta}
+                break
+            except Exception as exc:
+                # 已向页面输出内容后不重新请求，避免生成结果重复或前后不一致。
+                can_retry = not previous_content and is_retryable_network_error(exc)
+                if not can_retry or attempt == MAX_NETWORK_ATTEMPTS:
+                    if is_retryable_network_error(exc):
+                        raise RuntimeError(network_error_message(exc)) from exc
+                    raise
+                wait_before_retry(attempt)
 
         if final_output is None:
             raise RuntimeError("DashScope 流式调用未返回内容")
         self._add_usage(final_usage)
         return final_output
+
+    @staticmethod
+    def _call_with_network_retry(**kwargs):
+        for attempt in range(1, MAX_NETWORK_ATTEMPTS + 1):
+            try:
+                return Generation.call(**kwargs)
+            except Exception as exc:
+                if not is_retryable_network_error(exc) or attempt == MAX_NETWORK_ATTEMPTS:
+                    if is_retryable_network_error(exc):
+                        raise RuntimeError(network_error_message(exc)) from exc
+                    raise
+                wait_before_retry(attempt)
 
     def _add_usage(self, usage) -> None:
         if not usage:

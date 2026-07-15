@@ -49,7 +49,7 @@ def render_home() -> None:
     col1, col2, col3 = st.columns(3)
     col1.metric("Agent 工具", "8 个")
     col2.metric("文档格式", "4 种")
-    col3.metric("自动化测试", "21 项")
+    col3.metric("自动化测试", "24 项")
 
     st.subheader("核心能力")
     card1, card2, card3 = st.columns(3)

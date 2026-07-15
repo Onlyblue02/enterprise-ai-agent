@@ -1,15 +1,25 @@
 # Enterprise AI Agent 企业智能知识助手
 
-![Version](https://img.shields.io/badge/version-v1.0.0-4F46E5)
+![Version](https://img.shields.io/badge/version-v1.0.1-4F46E5)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB)
-![Tests](https://img.shields.io/badge/tests-21%20passed-16A34A)
+![Tests](https://img.shields.io/badge/tests-24%20passed-16A34A)
 ![Status](https://img.shields.io/badge/status-demo%20frozen-475569)
 
 基于 Python、Streamlit、LangChain、LangGraph、Chroma 与通义千问构建的企业智能知识助手 Demo。
 
 项目从基础 RAG 问答系统逐步升级而来，保留文档解析、向量检索和来源引用能力，并增加原生 Function Calling、企业业务工具、多步骤报告工作流、人工审批、任务持久化恢复与运行监控。
 
-> 当前稳定版本：`v1.0.0`（2026-07-15）。该版本已冻结功能基线，后续 `v1.0.x` 只进行 Bug、安全、兼容性、测试和文档修复。详细记录见 [CHANGELOG.md](CHANGELOG.md)。
+> 当前稳定版本：`v1.0.1`（2026-07-15）。该版本属于冻结基线的网络稳定性修复，后续 `v1.0.x` 只进行 Bug、安全、兼容性、测试和文档修复。详细记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+## 界面预览
+
+### 首页
+
+![企业智能知识助手首页](assets/screenshots/01-home.png)
+
+### 知识库资料中心
+
+![知识库资料中心](assets/screenshots/02-knowledge-base.png)
 
 ## 项目亮点
 
@@ -21,7 +31,7 @@
 - 使用 SQLite checkpoint 保存工作流，服务重启后可以恢复待审批任务
 - 流式显示 Agent 回答、报告内容和工作流执行进度
 - 记录任务状态、工具调用、节点事件、耗时、Token 用量与异常信息
-- 提供 21 项自动化测试，覆盖 Agent 工具、文档入库、工作流和可观测性
+- 提供 24 项自动化测试，覆盖 Agent 工具、网络重试、文档入库、工作流和可观测性
 
 ## 业务场景
 

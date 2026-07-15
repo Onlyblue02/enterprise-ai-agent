@@ -16,6 +16,12 @@ from langgraph.graph import END, StateGraph
 import config_data as config
 from database_service import DatabaseService
 from rag import RagService
+from dashscope_retry import (
+    MAX_NETWORK_ATTEMPTS,
+    is_retryable_network_error,
+    network_error_message,
+    wait_before_retry,
+)
 
 
 class ReportState(TypedDict, total=False):
@@ -505,12 +511,13 @@ class EnterpriseReportWorkflow:
             return json.loads(match.group(0))
 
     def _dashscope_call(self, messages: list[dict]) -> str:
-        response = Generation.call(
-            api_key=os.getenv("DASHSCOPE_API_KEY"),
-            model=config.chat_model_name,
-            messages=messages,
-            result_format="message",
-        )
+        kwargs = {
+            "api_key": os.getenv("DASHSCOPE_API_KEY"),
+            "model": config.chat_model_name,
+            "messages": messages,
+            "result_format": "message",
+        }
+        response = self._call_with_network_retry(**kwargs)
         if response.status_code != HTTPStatus.OK:
             raise RuntimeError(
                 f"DashScope 调用失败：{response.code} - {response.message}"
@@ -523,27 +530,49 @@ class EnterpriseReportWorkflow:
         messages: list[dict],
         on_token: Callable[[str], None],
     ) -> str:
+        kwargs = {
+            "api_key": os.getenv("DASHSCOPE_API_KEY"),
+            "model": config.chat_model_name,
+            "messages": messages,
+            "result_format": "message",
+            "stream": True,
+            "incremental_output": True,
+        }
         chunks = []
-        responses = Generation.call(
-            api_key=os.getenv("DASHSCOPE_API_KEY"),
-            model=config.chat_model_name,
-            messages=messages,
-            result_format="message",
-            stream=True,
-            incremental_output=True,
-        )
         final_usage = None
-        for response in responses:
-            if response.status_code != HTTPStatus.OK:
-                raise RuntimeError(
-                    f"DashScope 调用失败：{response.code} - {response.message}"
-                )
-            final_usage = getattr(response, "usage", final_usage)
-            token = str(response.output.choices[0].message.content or "")
-            if token:
-                chunks.append(token)
-                on_token(token)
+        for attempt in range(1, MAX_NETWORK_ATTEMPTS + 1):
+            try:
+                for response in Generation.call(**kwargs):
+                    if response.status_code != HTTPStatus.OK:
+                        raise RuntimeError(
+                            f"DashScope 调用失败：{response.code} - {response.message}"
+                        )
+                    final_usage = getattr(response, "usage", final_usage)
+                    token = str(response.output.choices[0].message.content or "")
+                    if token:
+                        chunks.append(token)
+                        on_token(token)
+                break
+            except Exception as exc:
+                can_retry = not chunks and is_retryable_network_error(exc)
+                if not can_retry or attempt == MAX_NETWORK_ATTEMPTS:
+                    if is_retryable_network_error(exc):
+                        raise RuntimeError(network_error_message(exc)) from exc
+                    raise
+                wait_before_retry(attempt)
         if not chunks:
             raise RuntimeError("DashScope 流式调用未返回内容")
         self._record_usage(final_usage)
         return "".join(chunks)
+
+    @staticmethod
+    def _call_with_network_retry(**kwargs):
+        for attempt in range(1, MAX_NETWORK_ATTEMPTS + 1):
+            try:
+                return Generation.call(**kwargs)
+            except Exception as exc:
+                if not is_retryable_network_error(exc) or attempt == MAX_NETWORK_ATTEMPTS:
+                    if is_retryable_network_error(exc):
+                        raise RuntimeError(network_error_message(exc)) from exc
+                    raise
+                wait_before_retry(attempt)
