@@ -21,6 +21,10 @@
 
 ![知识库资料中心](assets/screenshots/02-knowledge-base.png)
 
+### 企业报告工作流与人工审批
+
+![企业报告工作流](assets/screenshots/04-workflow.png)
+
 ## 项目亮点
 
 - 支持 TXT、Markdown、PDF、DOCX 文档解析与本地知识库管理
