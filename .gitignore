@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Secrets
+.env
+
+# Local runtime data (documents, vectors, conversations and SQLite files)
+data/
+
+# Compatibility: runtime paths used by older project versions
+chroma_db/
+vector_db/
+chat_history/
+documents.json
+md5.text
+enterprise.db
+workflow_checkpoints.db*
+observability.db*
