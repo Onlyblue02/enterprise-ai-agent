@@ -21,9 +21,17 @@
 
 ![知识库资料中心](assets/screenshots/02-knowledge-base.png)
 
+### Agent 知识库问答
+
+![Agent 知识库问答](assets/screenshots/03-agent-qa.png)
+
 ### 企业报告工作流与人工审批
 
 ![企业报告工作流](assets/screenshots/04-workflow.png)
+
+### Agent 与工作流运行监控
+
+![Agent 与工作流运行监控](assets/screenshots/05-observability.png)
 
 ## 项目亮点
 
